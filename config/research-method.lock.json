@@ -1,0 +1,21 @@
+{
+  "name": "ezbot-grok-scout",
+  "repository": "https://github.com/0xquqi/EZbot-grok-project-skill",
+  "commit": "fe21572daaf6c31cc932c63762233a9d2af8e406",
+  "skill_path": "skills/ezbot-grok-scout",
+  "entrypoint": "SKILL.md",
+  "delivery": "external_dependency",
+  "files": {
+    "SKILL.md": "9c04de28c9c78e79524f8725b51d5209740a19e1f9a49c10012618988f31e096",
+    "assets/defaults.json": "9eb8b3304dbf0473c04a682197b0d558198e8175ce3c66ef32d69034f332e71d",
+    "assets/messages.json": "1566393f77c47340dbdd3a4bea424805a57a31afa6b6c3d920b7a143a67ce0c6",
+    "references/discovery-state.md": "cef6146531ce0caba8e1af5d6a6056dd4c65acd3dfa12bff0b01b5eb42feb025",
+    "references/fees-contracts.md": "1e6b6d6151bf086da5889134c9aa17a704fd26715ebca7afc630d16c113ee23d",
+    "references/grok-runtime.md": "0aaae5e3d285818ab0437f4f13ecebe5b0745181fe12554968d673e137ca3a1f",
+    "references/mechanism-questions.md": "2b2a16eb5e1800eb982cb894bdc5be7252ea09513800280303c3dab4752fb4a3",
+    "references/output.md": "94cf360e0643f43eb8d136f9d584bbb31ddfd3f7039361a33a555616a927de70",
+    "references/research-flow.md": "fb6836ca3e1233e90aad7d02d085bcca5bcd5254983dc298ae6cc97bf4e3ee92",
+    "references/sources.md": "88361b9c25bc8bf81831c385e4f21da7648babbeb4faa75a68e11eec54a101be",
+    "references/startup.md": "430f9569622cd4efbce89091e8f3eadf81d8a711a9b8f2f603cc814adad73eb2"
+  }
+}

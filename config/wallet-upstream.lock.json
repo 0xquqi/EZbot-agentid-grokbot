@@ -1,0 +1,30 @@
+{
+  "repository": "https://github.com/binance/binance-skills-hub",
+  "commit": "96563daf34fa5a87af5d76c2f1107d697ae7ce07",
+  "path": "skills/binance-web3/binance-agentic-wallet",
+  "version": "1.15.0",
+  "required_cli_version": "1.12.0",
+  "modified": false,
+  "sha256": {
+    "SKILL.md": "9f72211e70232f16316557fa0c3161ca0f4d29f70e50c04d6e6638bf5c4dec85",
+    "references/authentication.md": "c7d1ff2186b3177830d9b358b779e741aa75c157b16abfdeb420bbf6df1d32d7",
+    "references/limit-order.md": "3d0d9aece07390e288f5c8dd7b2e60df07925b322fdbb4dc486c2bc8a5db45dc",
+    "references/prediction.md": "f82185f42fb480bf6ab028754d9cf1f3a8ff8c9c1a286fb6807de3ab28879f24",
+    "references/preflight.md": "dd504d2b9d83eee5c6b33885d4e651d6235770a006c45b83e9641c2936157791",
+    "references/defi.md": "4d1e1d3245c9f3c3c8dd2bce5747ddf38dd9b7aeb2df8d7e2102ce298cd348dd",
+    "references/gas.md": "9d65d35937082a12973b653055dbdf4f98e23ec5e834a26ff818b50c0804b151",
+    "references/wallet-view.md": "dfacac3c7ec1bfe9d4b81fa684a8c16aeb4130565e1ca60b4bdc763b4f1a2b0c",
+    "references/approvals.md": "528a382fa4e1c2db691d41db53b256e5b9ac1865358371196449c66ad4603635",
+    "references/market-order.md": "913624348e9a9031e6dd03c018b6d76a192aa986a7f4f64d356be89f9c4ed24e",
+    "references/domain-resolve.md": "4be96f25b826c0198bb23dce3628ef3f9840acf1725e808b01d3881b473d8e20",
+    "references/agent-id-exclusive-token-launches.md": "30c7797846e43e2ff99e225adbc3417f9ac244a238904bd4a358b113ef2ada51",
+    "references/x402-payment.md": "5712c5589733ea10844c55eb26af7f64ce21a09039d42de385a6fa2e9d01f37b",
+    "references/wallet-setting.md": "53590f678c1095ee5a7cfc8264036ca2a151f39e7fe5a0b51cff203204b0324a",
+    "references/agent-id-claim-status.md": "6c22f472ee6cd18bca5fedbe4babbfe88161ea1b055fee4316721e9f2cc6e8b5",
+    "references/external-sign.md": "d0c9c2ebb90dca90a3ecf79bebb12c722c2f4a2ffdb4bcb3b5eff48d59e69d46",
+    "references/send.md": "046efa758edaefb627ed9e5aa814f43275b551e2007cdcd5f618b2d6bb2a137a",
+    "references/security.md": "c6a3b1a85d215344a429647a03a71f64d3b4221924d426e34d636e1c4685b97b",
+    "references/speedup-cancel.md": "55fd979edf1740fe5958b20c2f7dcdaa14d53c5b8f193b0e1cf6c2a117f0d2db",
+    "scripts/agent-id-exclusive-token-launches.mjs": "15044335adc228286424988495e81f58343e7fe33e2b1f2f3946fe3f5627066a"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "configuration_owner": "installer",
+  "wallet": {
+    "accounts": [],
+    "default_account": null
+  },
+  "referrer_address": null,
+  "limits": {
+    "mode": "unlimited",
+    "per_transaction_amount_wei": null,
+    "daily_amount_wei": null,
+    "per_transaction_shares": null
+  },
+  "execution": {
+    "authorization_mode": "unconfigured",
+    "standing_authorizations": [],
+    "scheduled_transactions": []
+  },
+  "agents": {
+    "providers": {},
+    "routes": {},
+    "fallback_policy": "automatic",
+    "fallback_wait_seconds": 60
+  },
+  "approval_cleanup": {
+    "scope": "all_permissions_used_by_this_workflow",
+    "verify_zero_on_chain": true,
+    "automatic_write_retry": false
+  },
+  "research_budget": {
+    "max_calls_per_day": null,
+    "max_cost_units_per_day": null,
+    "currency": null
+  },
+  "research_cache": {
+    "ttl_seconds": 300
+  }
+}

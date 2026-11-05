@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.env
+.env.*
+*.sqlite*
+*.db
+*.jsonl
+state/
+private/
+cases/
+skills/binance-agentic-wallet/
