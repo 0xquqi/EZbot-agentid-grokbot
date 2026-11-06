@@ -20,7 +20,7 @@ description: 在Agent ID铸造Bot中协调原版项目研究、审计方法复�
 
 ## 执行与收尾
 
-交易只走BotRuntime.execute → MintCoordinator，没有旧Workflow.execute旁路。展示原钱包要求的提示并核对真实授权。默认额度无上限不表示自动交易，不代填个人账号或服务。
+交易只走BotRuntime.execute → MintCoordinator，没有旧Workflow.execute旁路。展示原钱包要求的提示并核对真实授权。默认额度无上限不表示自动交易，不代填个人账号或服务。未指定份数时，由 MintCoordinator 在准备阶段按宿主报告的钱包剩余与单笔上限打满；写明的份数不得超过这些上限。发送前再次核对上限，上限变化则重新准备并确认，不直接发送。执行器仍由安装者配置，不绑定某一家。
 
 同钱包串行、不同钱包独立，proof/签名/nonce/接收人每钱包重新绑定。写任务先落盘再提交；结果未知不重发、不换执行者。
 

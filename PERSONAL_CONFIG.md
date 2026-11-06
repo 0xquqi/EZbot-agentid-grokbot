@@ -4,7 +4,7 @@
 
 ## 额度和授权
 
-limits.mode=unlimited，金额/每日金额/单笔份数上限均为null，仅表示模板不加额度上限。钱包、平台、合约及余额限制仍生效。未指定数量且未配置自己的数量策略时，不继承作者个人“默认打满”规则。
+limits.mode=unlimited，金额/每日金额/单笔份数上限均为null，仅表示模板不加金额或额外份数上限。钱包、平台、合约及余额限制仍生效。quantity.when_unspecified 默认 fill_to_max：未指定数量且未配置自己的数量策略时，准备阶段按钱包剩余额度与单笔上限的最小值打满。这是产品默认，不是导入作者个人交易或授权偏好。指定份数时按指定值，但不得超过上述上限；要恢复“必须写明份数”，将 when_unspecified 设为 require_explicit。
 
 execution.authorization_mode=unconfigured，standing_authorizations和scheduled_transactions为空。无上限不等于交易授权；只读浏览可先用，执行需要真实宿主、原钱包提示/确认及独立核验。定时发现/交易不随安装自动开启。
 
@@ -32,7 +32,7 @@ research_cache.ttl_seconds默认300，只复用经宿主核验的project.brief�
 
 ## 配置执行责任（独立审计修订）
 
-`limits` 和 `referrer_address` 是宿主策略输入，不是运行库自带的日额度账本。填写非空金额/日累计/份数限制、非 unlimited 模式或推荐地址时，启动必须通过 `host.validate_personal_config(config)` 验收，否则拒绝启动。宿主只有实际实现并测试对应限额、日累计及 ABI 参数绑定后才能返回 True；发送前仍须通过 `current_checks.policy_valid` 与 `authorize` 校验。默认 unlimited/null 不变，不导入作者的交易偏好。
+`limits` 和 `referrer_address` 是宿主策略输入，不是运行库自带的日额度账本。填写非空金额/日累计/份数限制、非 unlimited 模式或推荐地址时，启动必须通过 `host.validate_personal_config(config)` 验收，否则拒绝启动。宿主只有实际实现并测试对应限额、日累计及 ABI 参数绑定后才能返回 True；发送前仍须通过 `current_checks.policy_valid` 与 `authorize` 校验。金额与日累计默认仍是 unlimited/null，不导入作者的金额或授权偏好。份数在未指定时按产品默认打满允许的上限，见上文；`per_transaction_shares` 若非空，是打满时额外参与取最小值的单笔份数上限。
 
 `wallet.accounts` 非空时为 EVM 地址字符串列表，select 会检查成员；空列表表示由宿主核实账户所有权，不代表任意钱包都已获授权。默认账号选择仍由宿主负责。
 

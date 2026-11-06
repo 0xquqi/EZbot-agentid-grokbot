@@ -58,7 +58,7 @@ host.finalize_plan(order,snapshot,template,learned_checks,proposal=None)为默�
 
 ## 6. 订单、完整计划核验与增量快照
 
-intent六字段：project_id、activity_id、chain_id、wallet、recipient、quantity（正整数字符串）。订单按owner/request_key与意图去重；新钱包/份数/接收人独立建单，旧确认不可复用。
+intent六字段：project_id、activity_id、chain_id、wallet、recipient、quantity。quantity 为十进制整数字符串；用户省略、null 或 `max` 时，订单 quantity_mode=fill_to_max，quantity 暂为 null。准备阶段 MintCoordinator 调用 host.mint_caps(order, snapshot)，将份数写成钱包剩余额度、单笔上限，以及宿主可选的 supply_remaining/balance_limited、安装者 per_transaction_shares（若有）的最小值。写明的正整数份数为 explicit，原样保留，但超过上述上限则拒绝。mint_caps 返回的 wallet_remaining 与 per_tx 必填，未知不得省略成无限。计划只在份数已落实后构建，intent_digest 仍只覆盖这六个字段。发送前用同一 mint_caps 再核对（snapshot 可为 null）。份数将变化时改为 needs_refresh；已超过上限时同样改为 needs_refresh 并返回错误。两种情况都释放未发送排队，不改数量直接广播。确认、授权与可插拔执行器不变，不绑定某一家执行器。订单按 owner/request_key 与意图去重；同一钱包的 fill_to_max 在未显式重做时不另开一单，也不把一个钱包的份数复制到另一个钱包。新钱包/份数/接收人独立建单，旧确认不可复用。
 
 plan必须包含：
 
@@ -89,7 +89,7 @@ sequence_terminal=True还表示整个授权/交易序列已结束。此时Cleanu
 
 ## 8. 运行和发行
 
-能力验收、研究预算、缓存、任务恢复、方法复现与私有备份见根目录LEARNING_AND_RECOVERY.md；配置由安装者填写。额度默认无上限不提供交易授权；自动发现/订阅需要宿主真正支持且用户明确启用。
+能力验收、研究预算、缓存、任务恢复、方法复现与私有备份见根目录LEARNING_AND_RECOVERY.md；配置由安装者填写。金额额度默认无上限，不提供交易授权；未指定份数按钱包剩余与单笔上限打满，仍须确认。自动发现/订阅需要宿主真正支持且用户明确启用。
 
 当前仅本地运行库及测试。所有真实宿主回调都必须实际实现，不能用固定True冒充链上验证。原钱包20文件、原研究方法外部锁依赖不改。公开发行按文件哈希白名单构建，不含私有案例、学习报告、数据库或测试夹具，公开发布另需用户对应授权。
 
