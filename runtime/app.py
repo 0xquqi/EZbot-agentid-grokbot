@@ -30,6 +30,10 @@ class BotRuntime:
         if cleanup_config.get('enabled',True) is not True or cleanup_config.get('exemptions',[]):
             raise ValueError('cleanup cannot be disabled or exempt permissions')
         limits=config.get('limits',{})
+        quantity=config.get('quantity',{})
+        if not isinstance(quantity, dict) or quantity.get('when_unspecified','fill_to_max') not in {'fill_to_max','require_explicit'}:
+            raise ValueError('invalid quantity policy')
+        self.quantity_policy=quantity.get('when_unspecified','fill_to_max')
         custom=any(limits.get(k) is not None for k in ['per_transaction_amount_wei','daily_amount_wei','per_transaction_shares']) or limits.get('mode','unlimited')!='unlimited' or config.get('referrer_address') is not None
         if custom:
             validator=getattr(host,'validate_personal_config',None)
@@ -99,7 +103,7 @@ class BotRuntime:
             self.orders=keep(OrderStore(str(path)));self.templates=keep(TemplateStore(str(path)))
             self.patterns=keep(PatternStore(str(path)));self.wallet_queue=keep(WalletQueue(str(path)))
             self.workflow=Workflow(self.router,self.cases,self.cleanup,self.evolution,self.patterns)
-            self.coordinator=MintCoordinator(self.orders,self.templates,self.workflow,self.wallet_queue)
+            self.coordinator=MintCoordinator(self.orders,self.templates,self.workflow,self.wallet_queue,limits=config.get('limits',{}))
             self.delegated_host=DelegatingHost(host,self.router,self.wallet_queue,self.claims,self.owner)
         except Exception:
             self.close();raise
@@ -134,7 +138,7 @@ class BotRuntime:
             from .common import address
             if address(intent['wallet']) not in {address(a) for a in accounts}:
                 raise PermissionError('wallet not in configured installation accounts')
-        return self.orders.create(self.owner,request_id,intent,explicit_repeat=explicit_repeat)
+        return self.orders.create(self.owner,request_id,intent,explicit_repeat=explicit_repeat,quantity_policy=self.quantity_policy)
     def prepare(self,order_id,snapshot,resolution,evidence,features=None):
         return self.coordinator.prepare(self.owner,order_id,snapshot,resolution,evidence,self.delegated_host,features)
     def confirm(self,order_id):

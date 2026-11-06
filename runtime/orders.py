@@ -9,17 +9,34 @@ import sqlite3
 import time
 import uuid
 from .common import address, digest, transaction, uint, AgentPending
+from .quantity import normalize_quantity
 
 LOCKED = {'dispatching', 'submission_unknown', 'submitted', 'mint_verified', 'failed', 'complete', 'cancelled'}
+IDENTITY = ('project_id', 'activity_id', 'chain_id', 'wallet', 'recipient')
 
 
-def intent(raw):
-    required = {'project_id', 'activity_id', 'chain_id', 'wallet', 'recipient', 'quantity'}
-    if set(raw) != required or type(raw['chain_id']) is not int or raw['chain_id'] <= 0:
-        raise ValueError('explicit project/activity/chain/wallet/recipient/quantity required')
-    if not raw['project_id'] or not raw['activity_id'] or int(uint(raw['quantity'])) <= 0:
-        raise ValueError('positive explicit quantity and activity required')
-    return {**raw, 'wallet': address(raw['wallet']), 'recipient': address(raw['recipient'])}
+def split_intent(raw, quantity_policy='fill_to_max'):
+    required = set(IDENTITY)
+    if not required <= set(raw) <= required | {'quantity'} or type(raw['chain_id']) is not int or raw['chain_id'] <= 0:
+        raise ValueError('explicit project/activity/chain/wallet/recipient required')
+    if not raw['project_id'] or not raw['activity_id']:
+        raise ValueError('project and activity required')
+    quantity, mode = normalize_quantity(raw, quantity_policy)
+    body = {key: raw[key] for key in IDENTITY}
+    body.update(wallet=address(raw['wallet']), recipient=address(raw['recipient']), quantity=quantity)
+    return body, mode
+
+
+def intent(raw, quantity_policy='fill_to_max'):
+    """Six-field order intent. Omitted quantity stays null until fill-to-max resolution."""
+    return split_intent(raw, quantity_policy)[0]
+
+
+def order_intent_key(body, mode):
+    # Explicit keys stay digest(intent) so existing orders still dedupe.
+    if mode == 'fill_to_max':
+        return digest({**body, 'quantity_mode': mode})
+    return digest(body)
 
 
 def validate_plan(order, plan):
@@ -90,10 +107,10 @@ class OrderStore:
 
     def close(self): self.db.close()
 
-    def create(self, owner, request_key, raw_intent, *, explicit_repeat=False):
+    def create(self, owner, request_key, raw_intent, *, explicit_repeat=False, quantity_policy='fill_to_max'):
         if not owner or not request_key:
             raise ValueError('installation owner and stable incoming request key required')
-        wanted = intent(raw_intent); key = digest(wanted)
+        wanted, mode = split_intent(raw_intent, quantity_policy); key = order_intent_key(wanted, mode)
         with self.db:
             self.db.execute('BEGIN IMMEDIATE')
             row = self.db.execute('SELECT o.record FROM mint_orders o JOIN mint_request_aliases a ON o.id=a.order_id WHERE a.owner=? AND a.request_key=?', (owner,request_key)).fetchone()
@@ -101,21 +118,66 @@ class OrderStore:
                 row = self.db.execute('SELECT record FROM mint_orders WHERE owner=? AND request_key=?', (owner,request_key)).fetchone()
             if row:
                 existing=json.loads(row[0])
-                if existing['intent']!=wanted: raise ValueError('same request id changed intent')
+                if not self._request_matches(existing, wanted, mode):
+                    raise ValueError('same request id changed intent')
                 return existing
-            rows = self.db.execute('SELECT record FROM mint_orders WHERE owner=? AND intent_key=? ORDER BY rowid DESC',(owner,key)).fetchall()
-            if rows:
-                previous=json.loads(rows[0][0])
+            previous=self._previous_order(owner, wanted, mode, key)
+            if previous:
                 repeatable = previous['state'] in {'complete','cancelled'} or (previous['state']=='failed' and previous['cleanup'].get('state')=='clean' and previous.get('result',{}).get('finalized') is True)
                 if not explicit_repeat or not repeatable:
                     self.db.execute('INSERT INTO mint_request_aliases VALUES (?,?,?)',(owner,request_key,previous['id']))
                     return previous  # A reminder/retry never creates another spend.
-            order=dict(id=str(uuid.uuid4()),owner=owner,intent=wanted,state='preparing',revision=1,
+            order=dict(id=str(uuid.uuid4()),owner=owner,intent=wanted,quantity_mode=mode,state='preparing',revision=1,
                        plan=None,confirmation=None,submission=None,cleanup={'state':'not_started'},followups=[])
             self.db.execute('INSERT INTO mint_orders VALUES (?,?,?,?,?,?)',
                             (order['id'],owner,key,request_key,1,json.dumps(order)))
             self.db.execute('INSERT INTO mint_request_aliases VALUES (?,?,?)',(owner,request_key,order['id']))
             return order
+
+    def _request_matches(self, existing, wanted, mode):
+        current=existing['intent']
+        if mode=='fill_to_max' and existing.get('quantity_mode','explicit')=='fill_to_max':
+            return all(current.get(key)==wanted[key] for key in IDENTITY)
+        return current==wanted
+
+    def _previous_order(self, owner, wanted, mode, key):
+        if mode=='fill_to_max':
+            rows=self.db.execute('SELECT record FROM mint_orders WHERE owner=? ORDER BY rowid DESC',(owner,)).fetchall()
+            for raw, in rows:
+                order=json.loads(raw)
+                if order.get('quantity_mode')=='fill_to_max' and all(order['intent'].get(key)==wanted[key] for key in IDENTITY):
+                    return order
+            return None
+        row=self.db.execute('SELECT record FROM mint_orders WHERE owner=? AND intent_key=? ORDER BY rowid DESC',(owner,key)).fetchone()
+        return json.loads(row[0]) if row else None
+
+    def bind_quantity(self, owner, order_id, quantity):
+        quantity=uint(quantity)
+        if int(quantity)<=0: raise ValueError('positive resolved quantity required')
+        order=self.get(owner, order_id)
+        if order['state'] in LOCKED:
+            raise ValueError('cannot change quantity on an in-flight or finished order')
+        if order['intent'].get('quantity')==quantity:
+            return order
+        order['intent']={**order['intent'], 'quantity': quantity}
+        order.update(confirmation=None, plan=None, state='preparing', followups=[])
+        order.pop('plan_review', None)
+        key=order_intent_key(order['intent'], order.get('quantity_mode','explicit'))
+        old=order['revision']; order['revision']+=1
+        with self.db:
+            changed=self.db.execute('UPDATE mint_orders SET intent_key=?, revision=?, record=? WHERE id=? AND owner=? AND revision=?',
+                                    (key, order['revision'], json.dumps(order), order['id'], order['owner'], old)).rowcount
+            if changed!=1: raise RuntimeError('order changed concurrently; reload')
+        return order
+
+    def mark_needs_refresh(self, owner, order_id):
+        order=self.get(owner, order_id)
+        if order['state'] in LOCKED:
+            raise ValueError('cannot refresh an in-flight or finished order')
+        if order['state']=='needs_refresh' and order.get('confirmation') is None:
+            return order
+        order.update(state='needs_refresh', confirmation=None)
+        return self._save(order)
 
     def get(self, owner, order_id):
         row=self.db.execute('SELECT record FROM mint_orders WHERE owner=? AND id=?',(owner,order_id)).fetchone()
@@ -300,6 +362,6 @@ class OrderStore:
 
     def card(self, owner, order_id):
         order=self.get(owner,order_id);p=order['plan'] or {}
-        return dict(order_id=order_id,state=order['state'],**order['intent'],
+        return dict(order_id=order_id,state=order['state'],quantity_mode=order.get('quantity_mode','explicit'),**order['intent'],
                     costs=p.get('costs'),expected_assets=p.get('expected_assets'),risks=p.get('risks'),
                     cleanup=order['cleanup'],followups=order['followups'],finalized=order.get('result',{}).get('finalized') is True)

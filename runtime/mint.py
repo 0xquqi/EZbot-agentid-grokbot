@@ -1,12 +1,14 @@
 """Product entry point; trusted host supplies wallet UI and independent evidence."""
 from .common import digest, address, PreDispatchRejected
+from .quantity import resolve_mint_quantity
 from .research_method import require_target
 
 
 class MintCoordinator:
-    def __init__(self, orders, templates, workflow, wallet_queue=None):
+    def __init__(self, orders, templates, workflow, wallet_queue=None, limits=None):
         self.orders,self.templates,self.workflow=orders,templates,workflow
         self.wallet_queue=wallet_queue
+        self.limits=limits or {}
 
     def _bind_case(self,plan):
         record=self.workflow.cases.require_case(plan['audit_ref'])
@@ -56,6 +58,9 @@ class MintCoordinator:
             if audit['verdict']!='pass' or self.workflow.cases.match(snapshot)['route']!='reuse_static_analysis':
                 return dict(state='audit_blocked',case_id=case_id)
             template=self.templates.record(snapshot,data['recipe'],case_id,host)
+        # Quantity is concrete before the host encodes calldata. Fill-to-max uses
+        # current caps; explicit requests that no longer fit are rejected here.
+        order=self.sync_quantity(owner, order, snapshot, host, rewrite=True)
         # Builder fetches wallet-specific proofs/signatures and performs current
         # simulation/preview. It must verify every active learned check locally.
         plan=host.build_plan(order,snapshot,template,checks)
@@ -66,6 +71,27 @@ class MintCoordinator:
         if not required<={f['id'] for f in plan.get('followups',[])}:
             raise ValueError('prepared plan omitted audited followup tasks')
         return self.orders.prepare(owner,order_id,plan,host)
+
+    def _resolved_quantity(self, order, snapshot, host):
+        reader=getattr(host,'mint_caps',None)
+        if not callable(reader):
+            raise PermissionError('host mint_caps required to enforce wallet and per-tx caps')
+        caps=reader(order, snapshot)
+        return resolve_mint_quantity(order['intent'], caps, self.limits.get('per_transaction_shares'), order.get('quantity_mode','explicit'))
+
+    def sync_quantity(self, owner, order, snapshot, host, *, rewrite):
+        """Apply fill-to-max or reject an over-cap explicit quantity before a plan is sent."""
+        quantity=self._resolved_quantity(order, snapshot, host)
+        if order['intent'].get('quantity')==quantity:
+            return order
+        if not rewrite:
+            return self.orders.mark_needs_refresh(owner, order['id'])
+        return self.orders.bind_quantity(owner, order['id'], quantity)
+
+    def _hold_for_refresh(self, owner, order_id):
+        order=self.orders.mark_needs_refresh(owner, order_id)
+        if self.wallet_queue:self.wallet_queue.release(order_id, no_submission=True)
+        return order
 
     def execute(self,owner,order_id,host):
         if not self.wallet_queue:return self._execute(owner,order_id,host)
@@ -80,6 +106,14 @@ class MintCoordinator:
         order=self.orders.get(owner,order_id)
         if order['state']!='ready':
             return self._reconcile(owner,order_id,host)
+        try:
+            order=self.sync_quantity(owner, order, None, host, rewrite=False)
+        except ValueError:
+            self._hold_for_refresh(owner, order_id)
+            raise
+        if order['state']!='ready':
+            if self.wallet_queue:self.wallet_queue.release(order_id, no_submission=True)
+            return order
         plan=order['plan']
         self._bind_case(plan)
         current=host.current_checks(order)

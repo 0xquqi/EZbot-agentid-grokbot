@@ -12,6 +12,9 @@
     "daily_amount_wei": null,
     "per_transaction_shares": null
   },
+  "quantity": {
+    "when_unspecified": "fill_to_max"
+  },
   "execution": {
     "authorization_mode": "unconfigured",
     "standing_authorizations": [],
